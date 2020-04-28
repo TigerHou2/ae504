@@ -1,0 +1,18 @@
+close all
+clear;clc
+
+mu = 1;
+r0 = []
+u0 = [r0;v0];
+tf = T;
+
+uvect = dynamics(mu,u0,dt,tf);
+
+hold on
+for i = 1:size(uvect,2)
+    x = uvect(1,i,:);
+    y = uvect(2,i,:);
+    z = uvect(3,i,:);
+    plot3(x(:),y(:),z(:))
+end
+hold off
