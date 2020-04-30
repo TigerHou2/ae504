@@ -20,11 +20,11 @@ if t > tvect(4)
     return
 end
 
-if (mod(t,50000)<1)
-    hold on
-    quiver3(rv(1),rv(2),rv(3),u(1)*8e10,u(2)*8e10,u(3)*8e10,'b');
-    hold off
-end
+% if (mod(t,50000)<1)
+%     hold on
+%     quiver3(rv(1),rv(2),rv(3),u(1)*8e10,u(2)*8e10,u(3)*8e10,'b');
+%     hold off
+% end
 
 %% V3
 % tgt = [-217.10e9, 0, 0, 0, -24.13e3, 0]';

@@ -1,13 +1,13 @@
+%% Simulation Initialization
+
 close all
 clear;clc
 
-% define all bodies (except target)
+% define spacecraft and physics
 mu = 1.327e20;
-r0 = [150.63e9, 0, 0 ;... % s/c
-      150.63e9, 0, 0]';
-v0 = [0, 29.72e3, 0 ;... % s/c
-      0, 29.72e3, 0]';
-x0 = [r0;v0];
+r0 = [150.63e9, 0, 0]';
+v0 = [0, 29.72e3, 0]';
+x0 = [[r0,r0];[v0,v0]]; % duplicate to show original path
 
 % define simulation parameters
 dt = 1000;
@@ -19,17 +19,25 @@ tgt = [217.10e9, 0, 0, ... % position
        0, 24.13e3, 0]';   % velocity
 t_ini = 0;
 t_end = 10000000;
-[re,ve] = TimeProp_V3(tgt(1:3),tgt(4:6),mu,(t_end-t_ini)/3600/24); % tgt future state
+x0 = [x0,tgt];
+
+% define number of thrust segments
+segments = 3;
+
+%% Simulation Execution
+
+% calculate target state at end time
+[re,ve] = TimeProp_V3(tgt(1:3),tgt(4:6),mu,(t_end-t_ini)/3600/24);
 [u,t] = init_control_v1(x0(:,1),[re;ve],t_ini,t_end);
 t(end+1) = t_end;
 
-x0 = [x0,tgt];
-
 % run simulation
-xvect = dynamics(mu,x0,dt,t0,tf,u,t);
+[xvect,dv] = dynamics(mu,x0,dt,t0,tf,u,t);
 
 % assign trajectory colors
 cmap = hsv(size(xvect,2));
+
+%% Rendering
 
 % plot trajectory
 figure(1)
@@ -50,8 +58,11 @@ scatter3(xvect(1,:,end),xvect(2,:,end),xvect(3,:,end),32,cmap,'Filled')
 hold off
 axis equal
 
+%% Output
+
 idx = (t_end-t0)/dt;
 
 % display position and velocity
-disp(['Position: ' num2str(xvect(1:3,1,idx)')])
-disp(['Velocity: ' num2str(xvect(4:6,1,idx)')])
+disp(['Position: ' num2str(xvect(1:3,1,idx)') ' m'])
+disp(['Velocity: ' num2str(xvect(4:6,1,idx)') ' m/s'])
+disp([' Delta-v: ' num2str(dv) ' m/s'])
