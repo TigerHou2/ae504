@@ -1,15 +1,29 @@
-function u = controls(rv,mu,t,uprev)
+function u = controls(rv,mu,uvect,tvect,t)
 %CONTROLS Summary of this function goes here
 %   Detailed explanation goes here
 
 %% V4
+umax = 1;
 u = nan(3,1);
-u(1) = sign(1.00000e6-t)*(-0.3677300);
-u(2) = sign(1.38562e6-t)*(-0.0698228);
-u(3) = 0;
+u(1) = sign(tvect(1)-t)*uvect(1);
+u(2) = sign(tvect(2)-t)*uvect(2);
+u(3) = sign(tvect(3)-t)*uvect(3);
 
-if t > 2000000
+u = u + mu * rv(1:3) / norm(rv(1:3))^3;
+
+if norm(u) > umax
+    disp('Warning: thrust exceeds tolerance!')
+end
+
+if t > tvect(4)
     u = zeros(3,1);
+    return
+end
+
+if (mod(t,50000)<1)
+    hold on
+    quiver3(rv(1),rv(2),rv(3),u(1)*8e10,u(2)*8e10,u(3)*8e10,'b');
+    hold off
 end
 
 %% V3
@@ -34,11 +48,11 @@ end
 % 
 % u = u / norm(u) * umax;
 % 
-% % if (mod(t,20000)<1)
-% %     hold on
-% %     quiver3(rv(1),rv(2),rv(3),u(1)*5e10,u(2)*5e10,u(3)*5e10,'b');
-% %     hold off
-% % end
+% if (mod(t,50000)<1)
+%     hold on
+%     quiver3(rv(1),rv(2),rv(3),u(1)*8e10,u(2)*8e10,u(3)*8e10,'b');
+%     hold off
+% end
 
 %% V2
 % tgt = [-217.10e9, 0, 0, 0, -24.13e3, 0]';

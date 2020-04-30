@@ -1,4 +1,4 @@
-function states = dynamics(mu,bodies,dt,tf)
+function states = dynamics(mu,bodies,dt,t0,tf,uvect,tvect)
 %DYNAMICS Simulates continuous thrust trajectory
 %   mu     = central body gravitational parameter.
 %   bodies = all non-central bodies in the system. 
@@ -7,13 +7,13 @@ function states = dynamics(mu,bodies,dt,tf)
 %   tf     = total simulation time (assumes t0 = 0).
 
 % two-body Runge-Kutta integration
-states = rk4(mu,bodies,dt,tf);
+states = rk4(mu,bodies,dt,t0,tf,uvect,tvect);
 
 end
 
 %% Function Definitions
 
-function [rv_dot,u] = f(rv,mu,t,uprev)
+function [rv_dot,u] = f(rv,mu,t,uvect,tvect)
 % Two-Body Gravity
 
 N = size(rv,2);
@@ -28,7 +28,7 @@ for i = 1:N
     % continuous thrust for first body
     % ----- control function goes here -----
     if i == 1
-        u = controls(rv(:,i),mu,t,uprev);
+        u = controls(rv(1:3,i),mu,uvect,tvect,t);
         rv_dot(4:6,i) = rv_dot(4:6,i) + u;
     end
     % ----- end of control function -----
@@ -36,25 +36,23 @@ end
 
 end
 
-function xvect = rk4(mu,x0,dt,T)
+function xvect = rk4(mu,x0,dt,t0,tf,uu,tt)
 % 4-Stage Runge-Kutta Propagator
 
-xvect = repmat(x0,1,1,T/dt);
-u = ones(3,1);
+xvect = repmat(x0,1,1,(tf-t0)/dt);
+tvect = linspace(t0,tf,(tf-t0)/dt+1);
 
-for jj = 1 : T/dt
+for jj = 1 : (tf-t0)/dt
     
     xvect(:,:,jj) = x0;
-    tvect = linspace(dt*(jj-1),dt*jj,4);
+    ttvect = linspace(tvect(jj),tvect(jj+1),4);
     
     % ============= RK4 =============
-    k1 = dt * f( x0,mu,tvect(1),u);
-    k2 = dt * f((x0 + k1/2),mu,tvect(2),u);
-    k3 = dt * f((x0 + k2/2),mu,tvect(3),u);
-    k4 = dt * f((x0 + k3)  ,mu,tvect(4),u);
+    k1 = dt * f( x0,mu,ttvect(1),uu,tt);
+    k2 = dt * f((x0 + k1/2),mu,ttvect(2),uu,tt);
+    k3 = dt * f((x0 + k2/2),mu,ttvect(3),uu,tt);
+    k4 = dt * f((x0 + k3)  ,mu,ttvect(4),uu,tt);
     x0 = x0 + 1/6 * (k1 + 2*k2 + 2*k3 + k4);
-    
-    [~,u] = f( x0,mu,tvect(1),u);
     
 end
 
