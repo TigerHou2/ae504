@@ -5,11 +5,9 @@ function [r1,v1] = TimeProp_V3(r0,v0,mu,dt,x)
 %   this function calculates the position and velocity vectors of the
 %   spacecraft at another time.
 %
-%   d = distance unit
-%
-%   r0: initial position vector (d)
-%   v0: initial velocity vector (d)
-%   mu: standard gravitational parameter of the central body (d^3/s^2)
+%   r0: initial position vector (km)
+%   v0: initial velocity vector (km)
+%   mu: standard gravitational parameter of the central body (km^3/s^2)
 %   dt: propagation time (days)
 %
 %   Arguments r0, v0, and mu can be given in any units, but dt must be
@@ -71,11 +69,7 @@ v = r0 * x*sqrt(mu)/norm(r)/norm(r0) * (temp1*S(temp1)-1) + ...
 rp = a * (1-e);
 
 % Prussing & Conway eq. 2.46
-x_guess = mu*dT^2/(rp*(double(feval(F,sqrt(mu)*dT/rp))+sqrt(mu)*dT));
-
-if isnan(x_guess) || abs(x_guess)<1e-3
-    x_guess = 1;
-end
+x_guess = mu*dT^2/(rp *(double(feval(F,sqrt(mu)*dT/rp))+sqrt(mu)*dT));
 
 options = optimoptions('fsolve','Display','none');
 x1 = fsolve(F,x_guess,options);

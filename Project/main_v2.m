@@ -15,59 +15,45 @@ t0 = 0;
 tf = 20000000;
 
 % define target's current state and controls
-tgt = [217.10e9, 0, 0, ... % position
-       0, 24.13e3, 10]';   % velocity
+tgt = [-217.10e9, 0, 0, ... % position
+       0, -24.13e3, 10]';   % velocity
 t_ini = 0;
 t_end = 10000000;
 x0 = [x0,tgt];
 
 % define number of thrust segments
-segments = 2;
+segments = 5;
 
 %% Simulation Execution
 
 % calculate target state at end time
 [re,ve] = TimeProp_V3(tgt(1:3),tgt(4:6),mu,(t_end-t_ini)/3600/24);
 
-% split time into segments
+% split time and weights into segments
 tvect = linspace(t_ini,t_end,segments+1)';
+weights = linspace(0,1,segments+1);
+xx = x0(:,1);
 
-% interpolate orbital elements between start target at segment times
-% --- first, get orbital parameters
-[a_ini,e_ini,i_ini,omg_ini,w_ini,f_ini] = Get_Orb_Params(r0(:,1),v0(:,1),mu);
-[a_end,e_end,i_end,omg_end,w_end,f_end] = Get_Orb_Params(re(:,1),ve(:,1),mu);
-% --- next, interpolate orbital parameters (currently we will assume same
-% orbit direction for origin and target.
-params_ini = [a_ini,e_ini,i_ini,omg_ini,w_ini,f_ini];
-params_end = [a_end,e_end,i_end,omg_end,w_end,f_end];
-params_vect = repmat(params_ini,segments+1,1) ...
-            + linspace(0,1,segments+1)'*(params_end-params_ini);
-% --- create end points for flight segments
-xx = nan(6,segments+1);
-xx(:,1) = x0(:,1);
-xx(:,end) = [re;ve];
-% --- create empty output vectors
+% create empty output vectors
 x_curr = x0;
 xvect = [];
 dv = [];
 
 % run simulation
 for i = 1:segments+1
-    % --- account for transition from 360 -> 0
-    pt = params_vect(i,:);
-    pt = double(pt<0).*[0,0,0,2*pi,2*pi,2*pi] + pt;
-    params_vect(i,:) = pt;
     % --- compute interpolated r,v vectors
-    if i ~= 1 && i ~= segments+1
-        [r,v] = Get_Orb_Vects(pt,mu);
-        xx(:,i) = [r;v];
+    if i ~= segments+1
+        [ro,vo] = TimeProp_V3(xx(1:3),xx(4:6),mu,(tvect(i+1)-tvect(i))/3600/24);
+%         [ro,vo] = TimeProp_V3(x0(1:3,1),x0(4:6,1),mu,(tvect(i+1)-t_ini)/3600/24);
+        [rd,vd] = TimeProp_V3(tgt(1:3),tgt(4:6),mu,(tvect(i+1)-t_ini)/3600/24);
+        rv = weights(i+1)*[rd;vd] + (1-weights(i+1))*[ro;vo];
         hold on
-        scatter3(r(1),r(2),r(3),32,'magenta','Filled')
+        scatter3(rv(1),rv(2),rv(3),32,'magenta','Filled')
         hold off
     end
     % --- compute control for current segment
     if i ~= 1
-        [uc,tc] = init_control_v1(xx(:,i-1),xx(:,i),tvect(i-1),tvect(i));
+        [uc,tc] = init_control_v1(xx,rv,tvect(i-1),tvect(i));
         if i == segments+1
             [xvect_curr,dv_curr] = dynamics(mu,x_curr,dt,tvect(i-1),tf,uc,[tc;tvect(i)]);
         else
@@ -75,6 +61,7 @@ for i = 1:segments+1
         end
         % --- update bodies in sim
         x_curr = xvect_curr(:,:,end);
+        xx = x_curr(:,1);
         xvect = cat(3,xvect,xvect_curr);
         dv = [dv; dv_curr];
     end
