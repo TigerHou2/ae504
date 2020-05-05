@@ -15,14 +15,14 @@ t0 = 0;
 tf = 20000000;
 
 % define target's current state and controls
-tgt = [217.10e9, 0, 0, ... % position
-       0, 24.13e3, 10]';   % velocity
+tgt = [217.10e9, 0, 100e9, ... % position
+       0, 24.13e3, 0]';   % velocity
 t_ini = 0;
 t_end = 10000000;
 x0 = [x0,tgt];
 
 % define number of thrust segments
-segments = 2;
+segments = 1;
 
 %% Simulation Execution
 
@@ -103,6 +103,7 @@ scatter3(xvect(1,:,end),xvect(2,:,end),xvect(3,:,end),32,cmap,'Filled')
 
 hold off
 axis equal
+view([-1,-1,1])
 
 %% Output
 

@@ -22,17 +22,32 @@ t_end = 10000000;
 x0 = [x0,tgt];
 
 % define number of thrust segments
-segments = 5;
+segments = 1;
 
 %% Simulation Execution
 
 % calculate target state at end time
-[re,ve] = TimeProp_V3(tgt(1:3),tgt(4:6),mu,(t_end-t_ini)/3600/24);
+[rf,vf] = TimeProp_V3(tgt(1:3),tgt(4:6),mu,(t_end-t_ini)/3600/24);
 
 % split time and weights into segments
 tvect = linspace(t_ini,t_end,segments+1)';
 weights = linspace(0,1,segments+1);
 xx = x0(:,1);
+
+% interpolate h vectors
+hi = cross(r0(:,1),v0(:,1));
+hf = cross(rf,vf);
+hvect = [ linspace(hi(1),hf(1),segments) ;...
+          linspace(hi(2),hf(2),segments) ;...
+          linspace(hi(3),hf(3),segments) ];
+
+% interpolate r magnitudes
+ri_norm = norm(r0(:,1));
+rf_norm = norm(rf(:,1));
+rnorm_vect = linspace(ri_norm,rf_norm,segments);
+
+% find r vectors
+
 
 % create empty output vectors
 x_curr = x0;
@@ -84,7 +99,7 @@ for i = 1:size(xvect,2)
 end
 
 % plot target
-scatter3(re(1),re(2),re(3),32,cmap(end,:),'Filled')
+scatter3(rf(1),rf(2),rf(3),32,cmap(end,:),'Filled')
 % plot all bodies
 scatter3(xvect(1,:,end),xvect(2,:,end),xvect(3,:,end),32,cmap,'Filled')
 

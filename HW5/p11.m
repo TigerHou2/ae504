@@ -4,21 +4,27 @@ clear;clc
 syms ls li S I alpha beta real
 syms I positive
 
-eqn1 = 1 + (ls-li)*I*S == 0;
-eqn2 = 1 - li*I == 0;
+H = 10*I + alpha + beta + ls*(-(1-alpha)*I*S) ...
+                        + li*( (1-alpha)*I*S - beta*I);
+
+eqn1 = diff(H,alpha) == 0;
+eqn2 = diff(H,beta)  == 0;
 
 soln = solve([eqn1,eqn2],[ls,li]);
 
-ls = soln.ls;
-li = soln.li;
+Ls = soln.ls;
+Li = soln.li;
 
-lsd = simplify(-(li-ls)*(1-alpha)*I);
-lid = simplify(-(li-ls)*(1-alpha)*S + li*beta - 10);
+lsd = simplify(-diff(H,S));
+lid = simplify(-diff(H,I));
 
-disp(['Ls     =  ' char(ls)])
-disp(['Li     =  ' char(li)])
-disp(['Ls_dot =  ' char(lsd)])
-disp(['Li_dot =  ' char(lid)])
+Lsd = simplify(subs(lsd,[ls,li],[Ls,Li]));
+Lid = simplify(subs(lid,[ls,li],[Ls,Li]));
+
+disp(['Ls     =  ' char(Ls)])
+disp(['Li     =  ' char(Li)])
+disp(['Ls_dot =  ' char(Lsd)])
+disp(['Li_dot =  ' char(Lid)])
 
 sd = -(1-alpha)*I*S;
 id =  (1-alpha)*I*S - beta*I;
@@ -32,6 +38,10 @@ eqn_alpha_2 = isolate(simplify(eqn_li),alpha);
 [a,b] = solve([eqn_alpha_1,eqn_alpha_2],[alpha,beta]);
 
 %% simulation
+
+close all
+clear;clc
+
 t = linspace(0,10,1000);
 dt = t(2) - t(1);
 
@@ -46,25 +56,31 @@ svect = nan(size(t));
 ivect = nan(size(t));
 rvect = nan(size(t));
 
+ls = (ss-1)/ii/ss;
+li = 1/ii;
+
 cost = 0;
 
 for k = 1:length(t)
-    
-%     A = double(subs(a,[S,I],[ss,ii]));
-%     B = double(subs(b,[S,I],[ss,ii]));
 
-    A = 0.27;
-    B = 0.27;
-    
-    A = max(-1,min(1,A));
-    B = max(-1,min(1,B));
+    signA =  sign(ls)*sign(li)*sign(li/ii+ls/ss);
+    signB = -sign(li);
+
+    A = max(signA,0);
+    B = max(signB,0);
+
+    ls = ls + dt * ( (A-1)/ss );
+    li = li + dt * ( (A+B-1)/ii - 10 );
+
+%     ls = ls + dt * ( ii*(li-ls)*(A-1) );
+%     li = li + dt * ( li*(B+ss*(A-1))-ss*ls*(A-1)-10 );
     
     avect(k) = A;
     bvect(k) = B;
     
-    ss = ss - ( (1-A)*ii*ss ) * dt;
-    ii = ii + ( (1-A)*ii*ss - B*ii ) * dt;
-    rr = rr + ( B*ii ) * dt;
+    ss = ss - dt * ( (1-A)*ii*ss );
+    ii = ii + dt * ( (1-A)*ii*ss - B*ii );
+    rr = rr + dt * ( B*ii );
     
     svect(k) = ss;
     ivect(k) = ii;
@@ -74,19 +90,33 @@ for k = 1:length(t)
     
 end
 
-% figure(1)
-% hold on
-% plot(t,avect,'--r','LineWidth',1)
-% plot(t,bvect,'--b','LineWidth',1)
-% hold off
-% legend('a','b','Location','Best')
-% title(['Cost = ' num2str(cost)])
+figure(1)
 
-figure(2)
+subplot(2,1,1)
+hold on
+plot(t,avect,'--r','LineWidth',1.2)
+plot(t,bvect,'--b','LineWidth',1.2)
+hold off
+legend('a','b','Location','Best')
+grid on
+
+subplot(2,1,2)
 hold on
 % plot(t,svect)
-plot(t,ivect)
-plot(t,rvect)
+plot(t,ivect,'LineWidth',1.2)
+plot(t,rvect,'LineWidth',1.2)
 hold off
 legend('Infected','Recovered','Location','Best')
-title(['Cost = ' num2str(cost)])
+grid on
+
+sgtitle(['Cost = ' num2str(cost)])
+% sgtitle('No Control Demonstration')
+latexify
+
+set(gcf, 'PaperPositionMode', 'manual')
+set(gcf, 'Color', [1 1 1])
+set(gcf, 'PaperUnits', 'centimeters')
+set(gcf, 'PaperSize', [20 10])
+set(gcf, 'Units', 'centimeters' )
+set(gcf, 'Position', [0.2 1.2 20 10])
+set(gcf, 'PaperPosition', [0.2 1.2 20 10])
