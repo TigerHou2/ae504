@@ -6,19 +6,19 @@ clear;clc
 % define spacecraft and physics
 mu = 1.327e20;
 r0 = [150.63e9, 0, 0]';
-v0 = [0, 29.72e3, 10]';
+v0 = [0, 29.72e3, 0]';
 x0 = [[r0,r0];[v0,v0]]; % duplicate to show original path
 
 % define simulation parameters
 dt = 1000;
 t0 = 0;
-tf = 20000000;
+tf = 21000000;
 
 % define target's current state and controls
-tgt = [-217.10e9, 0, 0, ... % position
-       0, -24.13e3, 10]';   % velocity
+tgt = [-217.10e9, 0, -100e9, ... % position
+       0, -24.13e3, 0]';   % velocity
 t_ini = 0;
-t_end = 10000000;
+t_end = 20000000;
 x0 = [x0,tgt];
 
 % define number of thrust segments
@@ -37,31 +37,48 @@ xx = x0(:,1);
 % interpolate h vectors
 hi = cross(r0(:,1),v0(:,1));
 hf = cross(rf,vf);
-hvect = [ linspace(hi(1),hf(1),segments) ;...
-          linspace(hi(2),hf(2),segments) ;...
-          linspace(hi(3),hf(3),segments) ];
+hvect = [ linspace(hi(1),hf(1),segments+1) ;...
+          linspace(hi(2),hf(2),segments+1) ;...
+          linspace(hi(3),hf(3),segments+1) ];
 
 % interpolate r magnitudes
 ri_norm = norm(r0(:,1));
 rf_norm = norm(rf(:,1));
-rnorm_vect = linspace(ri_norm,rf_norm,segments);
+rnorm_vect = linspace(ri_norm,rf_norm,segments+1);
 
 % find r vectors
-
+% --- for each h, project r0 and rf onto the plane defined by h
+r0_proj = r0(:,1) - (hvect ./ vecnorm(hvect,2,1)) .* ((r0(:,1)'*hvect) ./ vecnorm(hvect,2,1));
+rf_proj = rf(:,1) - (hvect ./ vecnorm(hvect,2,1)) .* ((rf(:,1)'*hvect) ./ vecnorm(hvect,2,1));
+% --- rotate r0 in the direction of h toward rf by an angle
+%     defined by the number of segments for interpolation
+angles = linspace(0,1,segments+1)...
+       .*acos(sum(r0_proj.*rf_proj)./vecnorm(r0_proj,2,1)...
+                                   ./vecnorm(rf_proj,2,1));
+rr = nan(size(r0_proj));
+for i = 1:size(rr,2)
+    rr(:,i) = rotv(r0_proj(:,i),hvect(:,i),angles(i));
+end
+% --- this vector is then scaled between r0 and rf by a factor
+%     defined by the number of segments
+rr = rr ./ vecnorm(rr,2,1) .* rnorm_vect;
+% --- finally, the velocity is defined by the position vector and h
+vv = nan(size(rr));
+for i = 2:size(vv,2)
+    vv(:,i) = cross(hvect(:,i),rr(:,i)) / (rr(:,i)'*rr(:,i));
+%     vv(:,i) = norm(vv(:,i)) * (rr(:,i)-rr(:,i-1)) / norm(rr(:,i)-rr(:,i-1));
+end
 
 % create empty output vectors
 x_curr = x0;
 xvect = [];
 dv = [];
 
-% run simulation
+%% run simulation
 for i = 1:segments+1
     % --- compute interpolated r,v vectors
     if i ~= segments+1
-        [ro,vo] = TimeProp_V3(xx(1:3),xx(4:6),mu,(tvect(i+1)-tvect(i))/3600/24);
-%         [ro,vo] = TimeProp_V3(x0(1:3,1),x0(4:6,1),mu,(tvect(i+1)-t_ini)/3600/24);
-        [rd,vd] = TimeProp_V3(tgt(1:3),tgt(4:6),mu,(tvect(i+1)-t_ini)/3600/24);
-        rv = weights(i+1)*[rd;vd] + (1-weights(i+1))*[ro;vo];
+        rv = [rr(:,i+1);vv(:,i+1)];
         hold on
         scatter3(rv(1),rv(2),rv(3),32,'magenta','Filled')
         hold off
@@ -105,6 +122,7 @@ scatter3(xvect(1,:,end),xvect(2,:,end),xvect(3,:,end),32,cmap,'Filled')
 
 hold off
 axis equal
+view([-1 -1 1])
 
 %% Output
 
