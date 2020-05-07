@@ -16,16 +16,35 @@ t0 = 0;
 tf = 10;
 
 %% Controls Calc
-syms c1 c2 n1 n2 tf L0 real
+syms c1 c2 n1 n2 tf real
 
 c  = [c1 c2]';
 lr = [n1 n2]';
-lv = @(t) lr*t + c;
+lv = @(t) (lr*t + c) * sqrt((lr*t + c)'*(lr*t + c));
+
+% lv1 = @(t) lv(1)*t + c(1);
+% lv2 = @(t) lv(2)*t + c(2);
+% 
+% vf_sym_1 = v0(1) - int(lv1,0,tf);
+
+L0 = 1;
+lv0 = lv(0);
+
+syms tt real
+vf_sym = v0 - int(lv,0,tf);
+rf_sym = r0 + int(v0-int(lv,0,tt),tt,0,tf);
+
+% eqn1 = 0 == L0 + lr'*v0 + lv0'*(g+u0);
+eqn2 = vf == v0 - int(lv,0,tf);
+eqn3 = rf == r0 + int(v0-int(lv,0,tt),tt,0,tf);
+
+[c1,c2,n1,n2,tf] = vpasolve([eqn2,eqn3],[c1,c2,n1,n2,tf])
+
 
 lv0 = lv(0);
 lvf = lv(tf);
 
-% L0 = 1;
+L0 = 1;
 
 u0 = -umax * lv0 / sqrt(lv0'*lv0);
 uf = -umax * lvf / sqrt(lvf'*lvf);
@@ -34,7 +53,7 @@ eqn1 = 0 == L0 + lr'*v0 + lv0'*(g+u0);
 eqn2 = 0 == L0 + lr'*vf + lvf'*(g+uf);
 eqn3 = vf-v0 == int(lv,0,tf);
 
-[c1,c2,n1,n2,tf,L0] = vpasolve([eqn1,eqn2,eqn3],[c1,c2,n1,n2,tf,L0]);
+[c1,c2,n1,n2,tf] = vpasolve([eqn1,eqn2,eqn3],[c1,c2,n1,n2,tf]);
 c1 = double(c1);
 c2 = double(c2);
 n1 = double(n1);

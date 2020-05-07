@@ -15,10 +15,10 @@ t0 = 0;
 tf = 50000000;
 
 % define target's current state and controls
-tgt = [217.10e9, 0, 100e9, ... % position
-       0, 24.13e3, 0]';   % velocity
+tgt = [0, 217.10e9, 100e9, ... % position
+      -24.13e3, 0, 0]';   % velocity
 t_ini = 0;
-t_end = 15000000;
+t_end = 23000000;
 x0 = [x0,tgt];
 
 %% Simulation Execution
