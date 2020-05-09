@@ -2,67 +2,30 @@ close all
 clear;clc
 
 r0 = [0 0]';
-v0 = [0 0]';
-rf = [10 10]';
-vf = [1 -1]';
-
+v0 = [0 1]';
+rf = [6 6]';
+vf = [-1 -1]';
 umax = 2;
-
 g = [0 -1]';
-
 dt = 0.01;
-
 t0 = 0;
-tf = 10;
+
+params = {r0,v0,rf,vf,umax,g,dt,t0};
 
 %% Controls Calc
-syms c1 c2 n1 n2 tf real
 
-c  = [c1 c2]';
-lr = [n1 n2]';
-lv = @(t) (lr*t + c) * sqrt((lr*t + c)'*(lr*t + c));
+X0 = [1,0,-1,0,10];
+options = optimoptions('fsolve','Display','iter'...
+                               ,'PlotFcn','optimplotx');
+xx = fsolve(@(X) trajSolver(X,params),X0,options);
 
-% lv1 = @(t) lv(1)*t + c(1);
-% lv2 = @(t) lv(2)*t + c(2);
-% 
-% vf_sym_1 = v0(1) - int(lv1,0,tf);
-
-L0 = 1;
-lv0 = lv(0);
-
-syms tt real
-vf_sym = v0 - int(lv,0,tf);
-rf_sym = r0 + int(v0-int(lv,0,tt),tt,0,tf);
-
-% eqn1 = 0 == L0 + lr'*v0 + lv0'*(g+u0);
-eqn2 = vf == v0 - int(lv,0,tf);
-eqn3 = rf == r0 + int(v0-int(lv,0,tt),tt,0,tf);
-
-[c1,c2,n1,n2,tf] = vpasolve([eqn2,eqn3],[c1,c2,n1,n2,tf])
-
-
-lv0 = lv(0);
-lvf = lv(tf);
-
-L0 = 1;
-
-u0 = -umax * lv0 / sqrt(lv0'*lv0);
-uf = -umax * lvf / sqrt(lvf'*lvf);
-
-eqn1 = 0 == L0 + lr'*v0 + lv0'*(g+u0);
-eqn2 = 0 == L0 + lr'*vf + lvf'*(g+uf);
-eqn3 = vf-v0 == int(lv,0,tf);
-
-[c1,c2,n1,n2,tf] = vpasolve([eqn1,eqn2,eqn3],[c1,c2,n1,n2,tf]);
-c1 = double(c1);
-c2 = double(c2);
-n1 = double(n1);
-n2 = double(n2);
-tf = double(tf);
+c1 = xx(1);
+c2 = xx(2);
+n1 = xx(3);
+n2 = xx(4);
+tf = xx(5);
 
 %% Simulation
-
-tf = 5;
 
 tt = 0:dt:tf;
 rr = nan(2,length(tt));
@@ -73,9 +36,15 @@ r = r0;
 v = v0;
 
 for i = 1:length(tt)
-%     u = [n1 n2]'*tt(i) + [c1 c2]';
-    u = [-0.2 -0.69]'*tt(i) + [1.09 3.02]';
-    u = u / norm(u) * umax;
+    u = [n1 n2]'*tt(i) + [c1 c2]';
+    % getting rid of u=0 singularity
+    if norm(u) < 1e-6
+        u = [0;0];
+    else
+        u = - u / norm(u) * umax;
+    end
+    % getting rid of fsolve precision error
+    u(abs(u)<1e-3) = 0;
     r = r + dt * v;
     v = v + dt * (g + u);
     rr(:,i) = r;
@@ -83,15 +52,46 @@ for i = 1:length(tt)
     uu(:,i) = u;
 end
 
-figure(1)
+figure(2)
 hold on
 plot(rr(1,:),rr(2,:))
 scatter(rf(1),rf(2))
 xlabel('x')
 ylabel('y')
 title('Trajectory')
-figure(2)
+figure(3)
 plot(uu(1,:),uu(2,:))
 xlabel('x')
 ylabel('y')
 title('Controls')
+
+%% function definitions
+
+function F = trajSolver(X,params)
+
+    r0 = params{1};
+    v0 = params{2};
+    rf = params{3};
+    vf = params{4};
+    umax = params{5};
+    g = params{6};
+
+    c1 = X(1);
+    c2 = X(2);
+    n1 = X(3);
+    n2 = X(4);
+    tf = X(5);
+    
+    L0 = 1;
+
+    c  = [c1 c2]';
+    lr = [n1 n2]';
+    lv = @(t) (lr*t + c);
+    u  = @(t) -umax * (lr*t + c) / sqrt((lr*t + c)'*(lr*t + c));
+    v  = @(t) v0 + integral(u,0,t,'ArrayValued',true) + g*t;
+
+    F(1) =  L0 + lr'*v0 + lv(0)'*(u(0)+g);
+    F(2:3) =  -vf + v0 + integral(u,0,tf,'ArrayValued',true);
+    F(4:5) =  -rf + r0 + integral(v,0,tf,'ArrayValued',true);
+
+end

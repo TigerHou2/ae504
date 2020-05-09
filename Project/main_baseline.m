@@ -1,3 +1,10 @@
+%% docs
+% transition matrix for inverse squasre gravitational field
+% --- https://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/19660016262.pdf
+%
+%
+%
+
 %% Simulation Initialization
 
 close all
@@ -15,10 +22,10 @@ t0 = 0;
 tf = 50000000;
 
 % define target's current state and controls
-tgt = [0, 217.10e9, 100e9, ... % position
+tgt = [0, 217.10e9, 20e9, ... % position
       -24.13e3, 0, 0]';   % velocity
 t_ini = 0;
-t_end = 23000000;
+t_end = 3e6;
 x0 = [x0,tgt];
 
 %% Simulation Execution
