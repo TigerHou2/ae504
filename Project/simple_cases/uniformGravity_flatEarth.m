@@ -14,7 +14,7 @@ params = {r0,v0,rf,vf,umax,g,dt,t0};
 
 %% Controls Calc
 
-X0 = [1,0,-1,0,10];
+X0 = [-0.07,-1.07,0.002,0.05,10];
 options = optimoptions('fsolve','Display','iter'...
                                ,'PlotFcn','optimplotx');
 xx = fsolve(@(X) trajSolver(X,params),X0,options);
@@ -82,7 +82,7 @@ function F = trajSolver(X,params)
     n2 = X(4);
     tf = X(5);
     
-    L0 = 1;
+    L0 = 0.1;
 
     c  = [c1 c2]';
     lr = [n1 n2]';

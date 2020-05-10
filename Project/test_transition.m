@@ -9,52 +9,74 @@ clear;clc
 % define spacecraft and physics
 mu = 1.327e20;
 r0 = [150.63e9, 0, 0]';
-v0 = [0, 29.72e3, 10]';
-x0 = [[r0,r0];[v0,v0]]; % duplicate to show original path
+v0 = [0, 29.72e3, 0]';
 
 % define simulation parameters
-dt = 2000;
+dt = 300;
 t0 = 0;
+t_final = 35e6;
 
 % define target state
-tgt = [0, 217.10e9, 20e9, ... % position
-      -24.13e3, 0, 0]';   % velocity
-  
+tgt = [217.10e9, 0, 100e9, ... % position
+       0, 24.13e3, 0]';   % velocity
+t_ini = t0;
+t_end = 10e6;
+
 % define control limits
 umax = 1;
 
-% define fsolve variable scale factors
+% set up objects for plotting
+x0 = [[r0,r0];[v0,v0]]; % duplicate to show original path
+x0 = [x0,tgt];
+
+% calculate target state at end time
+[rf,vf] = TimeProp_V3(tgt(1:3),tgt(4:6),mu,(t_end-t_ini)/3600/24);
+xf = [rf;vf];
+
+% make life easier for fsolve by scaling variables
 scale = [1e1,1e1,1e0,1e-6,1e-6,1e-7,1e6];
 
-% pass parameters to trajectory solver
-params = {r0,v0,tgt(1:3),tgt(4:6),mu,umax,scale};
+% gather parameters for solving controls
+params = {r0,v0,rf,vf,mu,umax,scale};
 
 %% solve for controls
 % ----------------------------
 
+% gravity gradient matrix
 G0 = mu/norm(r0)^5*(3*r0*r0'-norm(r0)^2*eye(3));
+
+% transition matrix
 phi = @(dt) [ [ eye(3) + G0*dt^2/2, eye(3)*dt + G0*dt^3/6 ];...
               [ G0*dt             , eye(3) + G0*dt^2/2] ];
 
-X0 = [0.642,-0.8259,-0.0822,-1.271e-6,-1.658e-6,1.64e-7,1.01e6] ./ scale;
-options = optimoptions('fsolve','Display','iter'...
-                               ,'PlotFcn','optimplotx'...
-                               ,'MaxFunctionEvaluations',500);
+% initial guess
+% X0 = [-0.108,0.889,0.283,2.414e-7,-2.044e-6,-6.526e-7,8.8e5] ./ scale;
+X0 = [-0.6131,0.7008,0.2128,1.2118e-6,-1.3903e-6,-4.2032e-7,1.0350e6] ./ scale;
+options = optimoptions('fsolve','Display','iter' ...
+                               ,'PlotFcn','optimplotx' ...
+                               ,'MaxFunctionEvaluations',700);
 xx = fsolve(@(X) trajSolver(X,params,phi), X0, options);
 
-xx = xx .* scale;
-lr = xx(4:6)';
-lv = xx(1:3)';
-tf = xx(7);
+xx  = xx .* scale;
+p0  = xx(1:3)';
+pd0 = xx(4:6)';
+tf  = xx(7);
+
+pp0 = [p0;pd0];
+
+p = @(t) [eye(3) zeros(3)] * (phi(t) * pp0);
+u = @(t) (norm(p(t))>1e-3) * umax * p(t) / sqrt(p(t)'*p(t)) * (t<tf);
 
 
 %% execute simulation
 % ----------------------------
 
 % create initial state vector
-rv0 = [[r0;v0],tgt];
-% simulate and gather position data
-[rv_vect,primer] = run_sim(mu,rv0,lr,lv,tf,dt,umax);
+rv0 = x0;
+
+% simulate control and gather position data
+[rv_vect,uvect] = run_sim(mu,rv0,u,dt,t_final);
+
 % assign trajectory colors
 cmap = hsv(size(rv_vect,2));
 
@@ -72,18 +94,36 @@ for i = 1:size(rv_vect,2)
 end
 
 % plot target
-scatter3(tgt(1),tgt(2),tgt(3),32,cmap(end,:),'Filled')
+scatter3(rf(1),rf(2),rf(3),32,cmap(end,:))
 % plot all bodies
 scatter3(rv_vect(1,:,end),rv_vect(2,:,end),rv_vect(3,:,end),32,cmap,'Filled')
 
 hold off
 axis equal
 view([-1,-1,1])
+xlabel('x')
+ylabel('y')
+zlabel('z')
+grid(gca,'minor')
+grid on
+latexify(19,13)
 
-% plot primer norm
+% plot controls
+uu = uvect;
+uu(:,vecnorm(uu,2,1)==0) = [];
 figure(3)
-tvect = linspace(0,tf,size(primer,2));
-plot(tvect,vecnorm(primer,2,1))
+hold on
+plot3(uu(1,:),uu(2,:),uu(3,:),'LineWidth',1.2)
+scatter3(uu(1,end),uu(2,end),uu(3,end))
+hold off
+axis equal
+view([-1,-1,1])
+xlabel('x')
+ylabel('y')
+zlabel('z')
+grid(gca,'minor')
+grid on
+latexify(19,13)
 
 %% trajectory solving functions
 
@@ -96,7 +136,6 @@ function F = trajSolver(X,params,phi)
     mu = params{5};
     umax = params{6};
     scale = params{7};
-
     
     xx = X .* scale;
     n1  = xx(1);
@@ -107,15 +146,14 @@ function F = trajSolver(X,params,phi)
     nd3 = xx(6);
     tf  = xx(7);
     
-    p0  = [n1 n2 n3]';
-    pd0 = [nd1 nd2 nd3]';
-    pp0  = [p0;pd0];
+    p0  = [n1 n2 n3]';      % -lv
+    pd0 = [nd1 nd2 nd3]';   %  lr
+    pp0 = [p0;pd0];
     
     p = @(t) [eye(3) zeros(3)] * (phi(t) * pp0);
+    u = @(t) (norm(p(t))>1e-3) * umax * p(t) / sqrt(p(t)'*p(t));
     
-    u = @(t) (norm(p(t))>1) * umax * p(t) / sqrt(p(t)'*p(t)) + zeros(3,1);
-    
-    F(1) = -1 + p0'*p0;
+    F(1) = 1 + pd0'*v0 - p0'*(-mu*r0/norm(r0)^3+u(0));
     F(2:7) = -[rf;vf] + [r0;v0] + propagate(r0,v0,mu,u,tf);
     
     F(5:7) = F(5:7) * norm(rf) / norm(vf);
@@ -123,58 +161,53 @@ function F = trajSolver(X,params,phi)
 end
 
 function [rvf] = propagate(r0,v0,mu,u,tf)
-
-    tvect = linspace(0,tf,2001);
+    
+    tvect = linspace(0,tf,501);
     dt = tvect(2) - tvect(1);
-    r = r0;
-    v = v0;
+    rv = [r0;v0];
     for i = 1:length(tvect)-1
-        rtemp = r + v * dt;
-        v = v + u(tvect(i)) - mu*r/norm(r)^3;
-        r = rtemp;
+        
+        k1 = dt * f( rv,mu,u(tvect(i)));
+        k2 = dt * f((rv + k1/2),mu,u(tvect(i)));
+        k3 = dt * f((rv + k2/2),mu,u(tvect(i)));
+        k4 = dt * f((rv + k3)  ,mu,u(tvect(i)));
+        rv = rv + 1/6 * (k1 + 2*k2 + 2*k3 + k4);
+        
     end
-    rf = r;
-    vf = v;
-    rvf = [rf;vf];
+    rvf = rv;
 
 end
 
 %% simulation functions
 
-function [rv_vect,primer] = run_sim(mu,rv0,lr,lv,tf,dt,umax)
+function [rv_vect,uvect,tvect] = run_sim(mu,rv0,u,delta_t,t_final)
 
-    steps = ceil(tf/dt);
-    dt = tf/steps;
-    rv_vect = nan(6,size(rv0,2),steps-1);
-    primer  = nan(3,steps-1);
-    pp = [-lv;lr];
+    steps = ceil(t_final/delta_t);
+    tvect = linspace(0,t_final,steps+1);
+    dt = tvect(2) - tvect(1);
+    
+    rv_vect = nan(6,size(rv0,2),steps);
+    uvect  = nan(3,steps);
+    
     rv = rv0;
 
-    for jj = 1 : steps-1
+    for jj = 1 : steps
     
-        pu = pp(4:6);
-        primer(:,jj) = pu;
-        if norm(pu)>1
-            pu = pu / (pu'*pu) * umax;
-        else
-            pu = pu * 0;
-        end
+        uvect(:,jj) = u(tvect(jj));
 
         rv_vect(:,:,jj) = rv;
 
         % ============= RK4 =============
-        k1 = dt * f( rv,mu,pu);
-        k2 = dt * f((rv + k1/2),mu,pu);
-        k3 = dt * f((rv + k2/2),mu,pu);
-        k4 = dt * f((rv + k3)  ,mu,pu);
+        k1 = dt * f( rv,mu,u(tvect(jj)));
+        k2 = dt * f((rv + k1/2),mu,u(tvect(jj)));
+        k3 = dt * f((rv + k2/2),mu,u(tvect(jj)));
+        k4 = dt * f((rv + k3)  ,mu,u(tvect(jj)));
         rv = rv + 1/6 * (k1 + 2*k2 + 2*k3 + k4);
 
-        % ============= Primer Propagation ==============
-        r = rv(1:3,1);
-        G = mu/(r'*r)^5*(3*(r*r')-(r'*r)*eye(3));
-        pp = pp + [[zeros(3), eye(3)];[G,zeros(3)]]*pp*dt;
-
     end
+    
+    % trim tvect
+    tvect(end) = [];
 
 end
 
@@ -185,17 +218,12 @@ function [rv_dot,u] = f(rv,mu,u)
     rv_dot = zeros(size(rv));
 
     for i = 1:N
-        % velocity
-        rv_dot(1:3,i) = rv(4:6,i);
-        % acceleration
-        rv_dot(4:6,i) = - mu * rv(1:3,i) / norm(rv(1:3,i))^3;
+        rv_dot(1:3,i) = rv(4:6,i); % vel
+        rv_dot(4:6,i) = - mu * rv(1:3,i) / norm(rv(1:3,i))^3; % accel
 
-        % continuous thrust for first body
-        % ----- control function goes here -----
         if i == 1
-            rv_dot(4:6,i) = rv_dot(4:6,i) + u;
+            rv_dot(4:6,i) = rv_dot(4:6,i) + u; % control
         end
-        % ----- end of control function -----
     end
 
 end

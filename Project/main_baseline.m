@@ -19,13 +19,13 @@ x0 = [[r0,r0];[v0,v0]]; % duplicate to show original path
 % define simulation parameters
 dt = 2000;
 t0 = 0;
-tf = 50000000;
+tf = 65e6;
 
 % define target's current state and controls
-tgt = [0, 217.10e9, 20e9, ... % position
-      -24.13e3, 0, 0]';   % velocity
+tgt = [217.10e9, 0, 100e9, ... % position
+       0, 24.13e3, 0]';   % velocity
 t_ini = 0;
-t_end = 3e6;
+t_end = 10e6;
 x0 = [x0,tgt];
 
 %% Simulation Execution
@@ -62,6 +62,9 @@ scatter3(xvect(1,:,end),xvect(2,:,end),xvect(3,:,end),32,cmap,'Filled')
 hold off
 axis equal
 view([-1,-1,1])
+grid(gca,'minor')
+grid on
+latexify(19,13)
 
 %% Output
 

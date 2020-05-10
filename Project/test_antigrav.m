@@ -13,18 +13,18 @@ clear;clc
 % define spacecraft and physics
 mu = 1.327e20;
 r0 = [150.63e9, 0, 0]';
-v0 = [0, 29.72e3, 10]';
+v0 = [0, 29.72e3, 0]';
 
 % define simulation parameters
-dt = 2000;
+dt = 300;
 t0 = 0;
-t_final = 10e6;
+t_final = 35e6;
 
 % define target state
-tgt = [0, 217.10e9, 20e9, ... % position
-      -24.13e3, 0, 0]';   % velocity
+tgt = [217.10e9, 0, 100e9, ... % position
+       0, 24.13e3, 0]';   % velocity
 t_ini = t0;
-t_end = 7e5;
+t_end = 10e6;
 
 % define control limits
 umax = 1;
@@ -46,7 +46,7 @@ params = {r0,v0,rf,vf,umax,scale};
 %% Solve Optimal Control
 
 % solve for optimal control policy (without gravity)
-X0 = [0.642,-0.8259,-0.0822,-1.271e-6,-1.658e-6,1.64e-7,1.01e6] ./ scale;
+X0 = [0.108,-0.889,-0.283,2.414e-7,-2.044e-6,-6.526e-7,8.857e5] ./ scale;
 options = optimoptions('fsolve','Display','iter'...
                                ,'PlotFcn','optimplotx');
 xx = fsolve(@(X) trajSolver(X,params),X0,options);
@@ -58,7 +58,7 @@ n1 = xx(4);
 n2 = xx(5);
 n3 = xx(6);
 tf = xx(7);
-p = @(t) ( [n1 n2 n3]'*t + [c1 c2 c3]' ) * (t<=tf);
+p = @(t) ( -[n1 n2 n3]'*t + [c1 c2 c3]' ) * (t<=tf); % lv
 
 %% Run Simulation
 
@@ -82,7 +82,7 @@ for i = 1:size(xvect,2)
 end
 
 % plot target
-scatter3(rf(1),rf(2),rf(3),32,cmap(end,:),'Filled')
+scatter3(rf(1),rf(2),rf(3),32,cmap(end,:))
 % plot all bodies
 scatter3(xvect(1,:,end),xvect(2,:,end),xvect(3,:,end),32,cmap,'Filled')
 
@@ -92,18 +92,26 @@ view([-1,-1,1])
 xlabel('x')
 ylabel('y')
 zlabel('z')
+grid(gca,'minor')
+grid on
+latexify(19,13)
 
 % plot controls
 figure(3)
 hold on
-plot3(uvect(1,:),uvect(2,:),uvect(3,:))
-scatter3(uvect(1,end),uvect(2,end),uvect(3,end))
+uu = uvect;
+uu(:,vecnorm(uu,2,1)==0) = [];
+plot3(uu(1,:),uu(2,:),uu(3,:),'LineWidth',1.2)
+scatter3(uu(1,end),uu(2,end),uu(3,end))
 hold off
 axis equal
-view([1,1,1])
+view([-1,-1,1])
 xlabel('x')
 ylabel('y')
 zlabel('z')
+grid(gca,'minor')
+grid on
+latexify(19,13)
 
 %% Output
 
@@ -137,8 +145,8 @@ function F = trajSolver(X,params)
 
     c  = [c1 c2 c3]';
     lr = [n1 n2 n3]';
-    lv = @(t) (lr*t + c);
-    u  = @(t) -umax * (lr*t + c) / sqrt((lr*t + c)'*(lr*t + c));
+    lv = @(t) (-lr*t + c);
+    u  = @(t) -umax * (-lr*t + c) / sqrt((-lr*t + c)'*(-lr*t + c));
     v  = @(t) v0 + integral(u,0,t,'ArrayValued',true);
 
     F(1) =  L0 + lr'*v0 + lv(0)'*(u(0));
