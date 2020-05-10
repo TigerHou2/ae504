@@ -74,26 +74,28 @@ cmap = hsv(size(xvect,2));
 figure(2)
 hold on
 scatter3(0,0,0,32,'Filled','MarkerFaceColor','k')
+p = gobjects(1,size(xvect,2));
 for i = 1:size(xvect,2)
     x = xvect(1,i,:);
     y = xvect(2,i,:);
     z = xvect(3,i,:);
-    plot3(x(:),y(:),z(:),'LineWidth',1.2,'Color',cmap(i,:))
+    p(i) = plot3(x(:),y(:),z(:),'LineWidth',1.2,'Color',cmap(i,:));
 end
 
 % plot target
-scatter3(rf(1),rf(2),rf(3),32,cmap(end,:))
+pt = scatter3(rf(1),rf(2),rf(3),32,cmap(end,:));
 % plot all bodies
-scatter3(xvect(1,:,end),xvect(2,:,end),xvect(3,:,end),32,cmap,'Filled')
+% scatter3(xvect(1,:,end),xvect(2,:,end),xvect(3,:,end),32,cmap,'Filled')
 
 hold off
 axis equal
 view([-1,-1,1])
-xlabel('x')
-ylabel('y')
-zlabel('z')
+xlabel('x, $m$')
+ylabel('y, $m$')
+zlabel('z, $m$')
 grid(gca,'minor')
 grid on
+legend([p,pt],'Spacecraft','Origin','Destination','Target','Location','Best')
 latexify(19,13)
 
 % plot controls
