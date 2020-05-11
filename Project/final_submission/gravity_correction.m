@@ -1,8 +1,12 @@
-%% docs
-% transition matrix for inverse squasre gravitational field
-% --- https://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/19660016262.pdf
+%% gravity_correction.m
 %
+% Author: 
+%   Tiger Hou
 %
+% Description:
+%   This script calculates the controls for a transfer between 
+%   two planets by assuming there are no body forces and then
+%   compensating for gravity in the controls.
 %
 
 %% Simulation Initialization
@@ -21,10 +25,16 @@ t0 = 0;
 t_final = 35e6;
 
 % define target state
-tgt = [217e9, 0    , 0, ... % position
-       0    , 24e3 , 0    ]';   % velocity
+tgt = [217.10e9, 0    , 100e9, ... % position
+       0    , 24.13e3 , 0    ]';   % velocity
 t_ini = t0;
-t_end = 25.7e6;
+t_end = 10e6;
+
+    % % case 2
+    % tgt = [217.10e9, 0    , 0, ... % position
+    %        0    , 24.13e3 , 0    ]';   % velocity
+    % t_ini = t0;
+    % t_end = 25.7e6;
 
 % define control limits
 umax = 1;
